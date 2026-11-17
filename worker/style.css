@@ -96,3 +96,6 @@ dialog::backdrop{background:#24243b73}
 .attachment{font-size:11px;color:var(--muted)}
 .column-empty{border:1px dashed #d7d5e3;border-radius:9px;color:#85859a;text-align:center;padding:15px 8px;font-size:12px}
 @media(max-width:850px){.board{grid-template-columns:repeat(3,minmax(265px,82vw))}.intro{margin-bottom:22px}}
+.intro-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+#boardDialog{width:min(500px,calc(100% - 24px))}
+#boardUrl{margin:12px 0;overflow:hidden;text-overflow:ellipsis}

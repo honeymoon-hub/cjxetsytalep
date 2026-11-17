@@ -11,7 +11,7 @@
 <header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><span id="account"></span></div></header>
 <main>
 <section id="dashboard" hidden>
-  <div class="intro"><div><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div>
+  <div class="intro"><div><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><div class="intro-actions"><button id="shareBoard" type="button" hidden>Panoyu paylaş</button><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div></div>
   <div class="filters board-tools"><div class="tabs" id="tabs" role="group" aria-label="Duruma göre filtrele"></div><input id="search" type="search" placeholder="Kartlarda ara…" aria-label="Kartlarda ara"></div>
   <div id="ticketList" class="board"></div>
 </section>
@@ -30,6 +30,7 @@
   </form>
 </dialog>
 <dialog id="photoDialog"><button type="button" class="icon" aria-label="Kapat">×</button><img alt="Talebe eklenen fotoğraf"></dialog>
+<dialog id="boardDialog"><form method="dialog"><div class="dialog-head"><h2>Panoyu paylaş</h2><button class="icon" aria-label="Kapat">×</button></div><p class="share-help">Bu bağlantıya sahip olan ve siteye erişimi bulunan kişiler panodaki kartları görüntüleyip durumlarını değiştirebilir.</p><input id="boardUrl" class="share-input" readonly aria-label="Pano bağlantısı"><button id="copyBoard" type="button">Bağlantıyı kopyala</button><p id="boardCopyStatus" class="share-status" role="status"></p></form></dialog>
 <!-- SCRIPT -->
 </body>
 </html>

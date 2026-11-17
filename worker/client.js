@@ -8,6 +8,7 @@ const date = new Intl.DateTimeFormat("tr-TR", { day:"numeric", month:"short", ye
 const longDate = new Intl.DateTimeFormat("tr-TR", { dateStyle:"medium", timeStyle:"short", timeZone:"Europe/Istanbul" });
 let tickets = [];
 let filter = "all";
+let boardShareKey = null;
 const previewUrls = [];
 const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
   "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
@@ -15,6 +16,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
 const tag = (value, labels) => '<span class="tag ' + escapeHTML(value) + '">' + escapeHTML(labels[value]) + '</span>';
 const shortId = id => "#" + id.split("/")[1].slice(0, 8).toUpperCase();
 const link = id => "/?talep=" + encodeURIComponent(id);
+const boardLink = shareKey => "/#anahtar=" + encodeURIComponent(shareKey);
 async function api(action, options = {}, query = {}) {
   const url = new URL("/api/" + action, location.origin);
   if (ticketId) url.searchParams.set("id", ticketId);
@@ -30,6 +32,7 @@ async function api(action, options = {}, query = {}) {
 }
 function renderBoard() {
   const query = $("search").value.trim().toLocaleLowerCase("tr");
+  const isBoardOwner = Boolean(boardShareKey && !key);
   const shown = tickets.filter(ticket => (filter === "all" || ticket.status === filter) &&
     (ticket.title + " " + ticket.body + " " + shortId(ticket.id)).toLocaleLowerCase("tr").includes(query));
   $("ticketList").innerHTML = Object.entries(statusNames).map(([status, label]) => {
@@ -38,7 +41,7 @@ function renderBoard() {
       <header class="column-head"><h2>${label}</h2><span class="column-count">${cards.length}</span></header>
       <div class="column-cards" data-dropzone="${status}">${cards.length ? cards.map(ticket => `
         <article class="ticket-card" draggable="true" data-ticket="${escapeHTML(ticket.id)}">
-          <a class="card-open" href="${link(ticket.id)}">
+          <a class="card-open" href="${link(ticket.id)}${!isBoardOwner && key ? "#anahtar=" + encodeURIComponent(key) : ""}">
             <span class="card-title">${escapeHTML(ticket.title)}</span>
             <span class="card-description">${escapeHTML(ticket.body)}</span>
             <span class="card-tags">${tag(ticket.priority, priorityNames)}${ticket.hasPhoto ? '<span class="attachment">▧ Fotoğraf</span>' : ''}</span>
@@ -71,7 +74,10 @@ function renderBoard() {
 async function dashboard() {
   const result = await api("list");
   tickets = result.tickets;
+  boardShareKey = result.shareKey || null;
   $("account").textContent = result.name;
+  $("shareBoard").hidden = !result.isOwner;
+  $("newTicket").hidden = !result.isOwner;
   $("tabs").innerHTML = Object.entries({ all:"Tümü", ...statusNames }).map(([value, label]) =>
     '<button type="button" data-filter="' + value + '" aria-pressed="' + (value === filter) + '">' + label + '</button>').join("");
   $("tabs").addEventListener("click", event => {
@@ -111,16 +117,16 @@ async function loadPhoto(button) {
   }
 }
 async function detail() {
-  const { ticket, replies, isOwner, shareKey } = await api("detail");
+  const { ticket, replies, isOwner, canManage, shareKey } = await api("detail");
   for (const url of previewUrls.splice(0)) URL.revokeObjectURL(url);
   $("detail").innerHTML = `
-    ${isOwner ? '<a class="back" href="/">← Taleplere dön</a>' : ""}
+    ${isOwner || canManage ? '<a class="back" href="' + (isOwner ? "/" : boardLink(key)) + '">← Panoya dön</a>' : ""}
     <header class="detail-head">
       <div><p class="meta">${shortId(ticket.id)}</p><h1>${escapeHTML(ticket.title)}</h1>
         <div class="tags">${tag(ticket.status, statusNames)}${tag(ticket.priority, priorityNames)}</div>
       </div>
     </header>
-    <div class="${isOwner ? "detail-columns" : ""}">
+    <div class="${canManage ? "detail-columns" : ""}">
       <div>
         <section class="card panel"><h2>Talep</h2>${renderMessage(ticket,"main")}</section>
         <section class="card panel"><h2>Yanıtlar (${replies.length})</h2>
@@ -133,16 +139,16 @@ async function detail() {
           </form>
         </section>
       </div>
-      ${isOwner ? `<aside>
+      ${canManage ? `<aside>
         <section class="card panel"><h2>Durum</h2><form id="statusForm">
           <label>Talebin durumu<select name="status">${Object.entries(statusNames).map(([value,label]) =>
               '<option value="' + value + '"' + (value === ticket.status ? " selected" : "") + '>' + label + '</option>').join("")}</select></label>
           <p class="error" role="alert"></p>
           <button type="submit">Durumu güncelle</button>
         </form></section>
-        <section class="card panel"><h2>Yanıt bağlantısı</h2><p class="share-help">Siteye erişimi olan kişiye bu bağlantıyı gönderin. Bağlantıyı açan kişi bu talebi görüp yanıtlayabilir.</p>
+        ${isOwner ? `<section class="card panel"><h2>Yanıt bağlantısı</h2><p class="share-help">Bu bağlantıyla yalnızca bu talep yanıtlanabilir.</p>
         <input class="share-input" id="shareUrl" readonly aria-label="Yanıt bağlantısı"><button type="button" id="copy">Bağlantıyı kopyala</button>
-        <p class="share-status" id="copyStatus" role="status"></p></section>
+        <p class="share-status" id="copyStatus" role="status"></p></section>` : ""}
       </aside>` : ""}
     </div>`;
   $("detail").hidden = false;
@@ -152,6 +158,13 @@ async function detail() {
     form.reset();
     await detail();
   });
+  if (canManage) {
+    submit($("statusForm"), async form => {
+      await api("status", { method:"POST", headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ status:form.elements.status.value }) });
+      await detail();
+    });
+  }
   if (isOwner) {
     $("shareUrl").value = new URL(link(ticket.id), location.origin).href + "#anahtar=" + shareKey;
     $("copy").onclick = async () => {
@@ -163,11 +176,6 @@ async function detail() {
         $("copyStatus").textContent = "Bağlantıyı seçili alandan kopyalayabilirsiniz.";
       }
     };
-    submit($("statusForm"), async form => {
-      await api("status", { method:"POST", headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({ status:form.elements.status.value }) });
-      await detail();
-    });
   }
 }
 function submit(form, handler) {
@@ -185,6 +193,19 @@ function submit(form, handler) {
 $("newTicket").onclick = () => $("createDialog").showModal();
 $("closeDialog").onclick = () => $("createDialog").close();
 $("photoDialog").querySelector("button").onclick = () => $("photoDialog").close();
+$("shareBoard").onclick = () => {
+  $("boardUrl").value = new URL(boardLink(boardShareKey), location.origin).href;
+  $("boardDialog").showModal();
+};
+$("copyBoard").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($("boardUrl").value);
+    $("boardCopyStatus").textContent = "Pano bağlantısı kopyalandı.";
+  } catch {
+    $("boardUrl").select();
+    $("boardCopyStatus").textContent = "Bağlantıyı seçili alandan kopyalayabilirsiniz.";
+  }
+};
 submit($("createForm"), async form => {
   const result = await api("create", { method:"POST", body:new FormData(form) });
   location.assign(link(result.id));

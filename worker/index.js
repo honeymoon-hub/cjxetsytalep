@@ -4,6 +4,7 @@ const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ticketPattern = /^[a-f0-9]{64}\/[a-f0-9-]{36}$/;
 const responsePattern = /^[a-f0-9-]{36}$/;
 const maxImage = 5 * 1024 * 1024;
+const siteOwnerEmail = "esmabayeaktar963@gmail.com";
 const encoder = new TextEncoder();
 const json = (value, status = 200) => Response.json(value, {
   status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
@@ -47,23 +48,46 @@ async function saveRecord(bucket, key, imageKey, record, photo, metadata) {
     throw error;
   }
 }
-async function api(request, bucket, url, user, owner, name) {
+async function api(request, bucket, url, user, owner, name, email) {
   if (!user) fail("Devam etmek için giriş yapın.", 401);
   if (!bucket) fail("Depolama şu anda kullanılamıyor.", 503);
   const action = url.pathname.slice(5);
   if (request.method === "GET" && action === "list") {
-    const objects = await list(bucket, "tickets/" + owner + "/");
+    let boardOwner = owner;
+    let board = await read(bucket, "boards/" + owner);
+    const supplied = request.headers.get("X-Ticket-Key");
+    let isOwner = email?.toLowerCase() === siteOwnerEmail && !supplied;
+    if (supplied) {
+      const boards = await list(bucket, "boards/");
+      board = null;
+      for (const object of boards) {
+        const candidate = await read(bucket, object.key);
+        if (candidate?.token === supplied) {
+          board = candidate;
+          break;
+        }
+      }
+      if (!board) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
+      boardOwner = board.owner;
+      isOwner = boardOwner === owner && email?.toLowerCase() === siteOwnerEmail;
+    }
+    if (isOwner && !board) {
+      board = { owner, token: crypto.randomUUID() + crypto.randomUUID() };
+      await bucket.put("boards/" + owner, JSON.stringify(board));
+    }
+    const objects = await list(bucket, "tickets/" + boardOwner + "/");
     const tickets = objects.map(object => {
       const info = object.customMetadata;
       return { ...info, id: object.key.slice(8) };
     });
-    return json({ tickets: tickets.sort((a, b) => b.created.localeCompare(a.created)), name });
+    return json({ tickets: tickets.sort((a, b) => b.created.localeCompare(a.created)), name, isOwner, ...(isOwner ? { shareKey: board.token } : {}) });
   }
   if (request.method === "POST") {
     if (request.headers.get("Origin") !== url.origin) fail("İstek doğrulanamadı.", 403);
     if (Number(request.headers.get("Content-Length")) > maxImage + 65536) fail("Dosya çok büyük.", 413);
   }
   if (request.method === "POST" && action === "create") {
+    if (email?.toLowerCase() !== siteOwnerEmail) fail("Yeni talepleri yalnızca pano sahibi açabilir.", 403);
     const form = await request.formData();
     const title = required(form, "title", 120);
     const body = required(form, "body", 6000);
@@ -84,15 +108,20 @@ async function api(request, bucket, url, user, owner, name) {
   if (!ticketPattern.test(id)) fail("Talep bulunamadı.", 404);
   const key = "tickets/" + id;
   const ticket = await read(bucket, key);
-  const isOwner = id.startsWith(owner + "/");
+  const isOwner = id.startsWith(owner + "/") && email?.toLowerCase() === siteOwnerEmail;
   const token = request.headers.get("X-Ticket-Key");
-  if (!ticket || (!isOwner && (!token || token !== ticket.token))) fail("Talep bulunamadı veya erişiminiz yok.", 404);
+  let hasBoardAccess = false;
+  if (!isOwner && token) {
+    const board = await read(bucket, "boards/" + id.split("/")[0]);
+    hasBoardAccess = Boolean(board && board.token === token);
+  }
+  if (!ticket || (!isOwner && !hasBoardAccess && (!token || token !== ticket.token))) fail("Talep bulunamadı veya erişiminiz yok.", 404);
   const { token: shareKey, ...visible } = ticket;
   if (request.method === "GET" && action === "detail") {
     const objects = await list(bucket, "replies/" + id + "/");
     const replies = (await Promise.all(objects.map(object => read(bucket, object.key))))
       .filter(Boolean).sort((a, b) => a.created.localeCompare(b.created));
-    return json({ ticket: visible, replies, isOwner, ...(isOwner ? { shareKey } : {}) });
+    return json({ ticket: visible, replies, isOwner, canManage: isOwner || hasBoardAccess, ...(isOwner ? { shareKey } : {}) });
   }
   if (request.method === "GET" && action === "photo") {
     const reply = url.searchParams.get("reply") || "main";
@@ -117,7 +146,7 @@ async function api(request, bucket, url, user, owner, name) {
     return json({ ok: true }, 201);
   }
   if (request.method === "POST" && action === "status") {
-    if (!isOwner) fail("Durumu yalnızca talebi açan kişi değiştirebilir.", 403);
+    if (!isOwner && !hasBoardAccess) fail("Bu panoda durumu değiştirme yetkiniz yok.", 403);
     const { status } = await request.json();
     if (!statuses.includes(status)) fail("Geçerli bir durum seçin.");
     const { title, priority, created } = ticket;
@@ -144,10 +173,12 @@ export default {
       if (request.headers.get("oai-authenticated-user-full-name-encoding") === "percent-encoded-utf-8") {
         try { name = decodeURIComponent(name); } catch {}
       }
-      return await api(request, env.BUCKET, url, user, user && await digest(user), name);
+      const email = request.headers.get("oai-authenticated-user-email") || "";
+      return await api(request, env.BUCKET, url, user, user && await digest(user), name, email);
     } catch (error) {
       if (!error.status) console.error(error.message);
       return json({ error: error.status ? error.message : "İşlem tamamlanamadı. Tekrar deneyin." }, error.status || 500);
     }
   }
 };
+    if (!isOwner && !supplied) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
