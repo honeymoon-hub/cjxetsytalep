@@ -28,28 +28,50 @@ async function api(action, options = {}, query = {}) {
   }
   return action === "photo" ? response.blob() : response.json();
 }
-function renderRows() {
+function renderBoard() {
   const query = $("search").value.trim().toLocaleLowerCase("tr");
   const shown = tickets.filter(ticket => (filter === "all" || ticket.status === filter) &&
-    (ticket.title + " " + shortId(ticket.id)).toLocaleLowerCase("tr").includes(query));
-  $("ticketList").innerHTML = shown.length ? `
-    <div class="row-head"><span>Talep</span><span>Durum</span><span>Öncelik</span><span>Açılış tarihi</span></div>
-    ${shown.map(ticket => `
-      <a class="row" href="${link(ticket.id)}">
-        <div><span class="ticket-title">${escapeHTML(ticket.title)}</span><span class="ticket-id">${shortId(ticket.id)}</span></div>
-        <div>${tag(ticket.status, statusNames)}</div><div>${tag(ticket.priority, priorityNames)}</div>
-        <small>${date.format(new Date(ticket.created))}</small>
-      </a>`).join("")}` :
-    '<div class="empty"><h2>' + (tickets.length ? "Eşleşen talep yok" : "Henüz talep açılmadı") +
-    '</h2><p>' + (tickets.length ? "Aramayı veya durum filtresini değiştirin." : "Başlamak için Yeni talep düğmesini kullanın.") + '</p></div>';
+    (ticket.title + " " + ticket.body + " " + shortId(ticket.id)).toLocaleLowerCase("tr").includes(query));
+  $("ticketList").innerHTML = Object.entries(statusNames).map(([status, label]) => {
+    const cards = shown.filter(ticket => ticket.status === status);
+    return `<section class="board-column" data-column="${status}">
+      <header class="column-head"><h2>${label}</h2><span class="column-count">${cards.length}</span></header>
+      <div class="column-cards" data-dropzone="${status}">${cards.length ? cards.map(ticket => `
+        <article class="ticket-card" draggable="true" data-ticket="${escapeHTML(ticket.id)}">
+          <a class="card-open" href="${link(ticket.id)}">
+            <span class="card-title">${escapeHTML(ticket.title)}</span>
+            <span class="card-description">${escapeHTML(ticket.body)}</span>
+            <span class="card-tags">${tag(ticket.priority, priorityNames)}${ticket.hasPhoto ? '<span class="attachment">▧ Fotoğraf</span>' : ''}</span>
+            <span class="card-foot"><span>${escapeHTML(ticket.name)}</span><span>${date.format(new Date(ticket.created))}</span></span>
+          </a>
+        </article>`).join("") : '<div class="column-empty">Kartları buraya taşıyın</div>'}</div>
+    </section>`;
+  }).join("");
+  for (const card of $("ticketList").querySelectorAll(".ticket-card")) {
+    card.addEventListener("dragstart", event => { event.dataTransfer.setData("text/plain", card.dataset.ticket); card.classList.add("dragging"); });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+  }
+  for (const zone of $("ticketList").querySelectorAll("[data-dropzone]")) {
+    zone.addEventListener("dragover", event => { event.preventDefault(); zone.classList.add("drop-target"); });
+    zone.addEventListener("dragleave", event => { if (!zone.contains(event.relatedTarget)) zone.classList.remove("drop-target"); });
+    zone.addEventListener("drop", async event => {
+      event.preventDefault(); zone.classList.remove("drop-target");
+      const id = event.dataTransfer.getData("text/plain");
+      const ticket = tickets.find(item => item.id === id);
+      if (!ticket || ticket.status === zone.dataset.dropzone) return;
+      const previous = ticket.status;
+      ticket.status = zone.dataset.dropzone;
+      renderBoard();
+      try {
+        await api("status", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({status:ticket.status}) }, {id});
+      } catch (error) { ticket.status = previous; renderBoard(); alert(error.message); }
+    });
+  }
 }
 async function dashboard() {
   const result = await api("list");
   tickets = result.tickets;
   $("account").textContent = result.name;
-  $("metrics").innerHTML = Object.keys(statusNames).map(status =>
-    '<div class="metric">' + tag(status, statusNames) + '<strong>' +
-    tickets.filter(ticket => ticket.status === status).length + '</strong></div>').join("");
   $("tabs").innerHTML = Object.entries({ all:"Tümü", ...statusNames }).map(([value, label]) =>
     '<button type="button" data-filter="' + value + '" aria-pressed="' + (value === filter) + '">' + label + '</button>').join("");
   $("tabs").addEventListener("click", event => {
@@ -57,10 +79,10 @@ async function dashboard() {
     if (!button) return;
     filter = button.dataset.filter;
     for (const tab of $("tabs").children) tab.setAttribute("aria-pressed", tab === button);
-    renderRows();
+    renderBoard();
   });
-  $("search").addEventListener("input", renderRows);
-  renderRows();
+  $("search").addEventListener("input", renderBoard);
+  renderBoard();
   $("dashboard").hidden = false;
 }
 const photoButton = (record, id) => record.hasPhoto ?
