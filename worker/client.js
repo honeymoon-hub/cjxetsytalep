@@ -10,6 +10,17 @@ let tickets = [];
 let filter = "all";
 let boardShareKey = null;
 const previewUrls = [];
+const themeButton = $("themeToggle");
+function setTheme(theme) {
+  const dark = theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  themeButton.setAttribute("aria-pressed", String(dark));
+  themeButton.setAttribute("aria-label", dark ? "Açık temaya geç" : "Koyu temaya geç");
+  themeButton.innerHTML = '<span aria-hidden="true">' + (dark ? "☀" : "☾") + '</span><span class="theme-label">' + (dark ? "Açık görünüm" : "Koyu görünüm") + '</span>';
+  localStorage.setItem("talep-masasi-theme", dark ? "dark" : "light");
+}
+setTheme(localStorage.getItem("talep-masasi-theme") || "light");
+themeButton.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
   "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
 })[character]);
