@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Talep Masası</title>
+<meta name="description" content="Talepleri açın, yanıtlayın ve takip edin.">
+<!-- STYLES -->
+</head>
+<body>
+<header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><span id="account"></span></div></header>
+<main>
+<section id="dashboard" hidden>
+  <div class="intro"><div><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div>
+  <div class="metrics" id="metrics"></div>
+  <section class="panel">
+    <div class="filters"><div class="tabs" id="tabs" role="group" aria-label="Duruma göre filtrele"></div><input id="search" type="search" placeholder="Talep ara…" aria-label="Talep ara"></div>
+    <div id="ticketList"></div>
+  </section>
+</section>
+<section id="detail" hidden></section>
+<p id="notice" role="status">Yükleniyor…</p>
+</main>
+<dialog id="createDialog">
+  <form id="createForm">
+    <div class="dialog-head"><h2>Yeni talep</h2><button type="button" id="closeDialog" class="icon" aria-label="Kapat">×</button></div>
+    <label>Başlık<input name="title" required maxlength="120" placeholder="Talebin kısa başlığı"></label>
+    <label>Açıklama veya soru<textarea name="body" required maxlength="6000" rows="5" placeholder="Karşı tarafın bilmesi veya yanıtlaması gerekenleri yazın."></textarea></label>
+    <label>Öncelik<select name="priority"><option value="normal">Normal</option><option value="high">Yüksek</option><option value="urgent">Acil</option></select></label>
+    <label>Fotoğraf <span class="muted">· isteğe bağlı</span><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG veya WebP · en fazla 5 MB</small></label>
+    <p class="error" role="alert"></p>
+    <div class="actions"><button type="submit" class="primary">Talebi oluştur</button></div>
+  </form>
+</dialog>
+<dialog id="photoDialog"><button type="button" class="icon" aria-label="Kapat">×</button><img alt="Talebe eklenen fotoğraf"></dialog>
+<!-- SCRIPT -->
+</body>
+</html>
