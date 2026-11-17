@@ -168,3 +168,8 @@ dialog::backdrop{background:#141322a6}
 .error{color:#cf4965}
 html[data-theme=dark] .error{color:#ff8295}
 @media(max-width:700px){.bar{padding:12px 15px}.bar-tools{gap:7px}.theme-label{display:none}.theme-toggle{padding:8px 10px}.intro{padding:20px 17px;align-items:flex-start;flex-direction:column}.intro-actions{width:100%;justify-content:stretch}.intro-actions button{flex:1}.board-tools{align-items:stretch}.tabs{justify-content:center}.board{grid-template-columns:repeat(3,minmax(270px,86vw))}main{padding:30px 15px}}
+.answer-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.answer-data>div{display:grid;gap:5px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--column)}
+.answer-data span{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.answer-data strong{font-size:14px;overflow-wrap:anywhere}
+@media(max-width:460px){.answer-data{grid-template-columns:1fr}}

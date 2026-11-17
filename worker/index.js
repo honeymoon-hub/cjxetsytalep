@@ -139,9 +139,13 @@ async function api(request, bucket, url, user, owner, name, email) {
   if (request.method === "POST" && action === "reply") {
     const form = await request.formData();
     const body = String(form.get("body") || "").trim();
+    const sku = String(form.get("sku") || "").trim();
+    const stockStatus = String(form.get("stockStatus") || "").trim();
     const photo = form.get("photo");
-    if ((!body && !(photo instanceof File && photo.size)) || body.length > 6000) fail("Bir yanıt yazın veya fotoğraf ekleyin.");
-    const reply = { id: crypto.randomUUID(), name, body, created: new Date().toISOString(), hasPhoto: false };
+    if (!sku || sku.length > 120 || !stockStatus || stockStatus.length > 160 || body.length > 6000) {
+      fail("SKU ve stok durumu alanlarını doldurun.");
+    }
+    const reply = { id: crypto.randomUUID(), name, body, sku, stockStatus, created: new Date().toISOString(), hasPhoto: false };
     const suffix = id + "/" + reply.id;
     await saveRecord(bucket, "replies/" + suffix, "photos/" + suffix, reply, photo);
     return json({ ok: true }, 201);

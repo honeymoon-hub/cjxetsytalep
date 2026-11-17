@@ -106,7 +106,10 @@ const photoButton = (record, id) => record.hasPhoto ?
   '<button type="button" class="photo" data-photo="' + id + '" aria-label="Fotoğrafı büyüt">Fotoğraf yükleniyor…</button>' : "";
 function renderMessage(record, photoId) {
   return '<p class="meta">' + escapeHTML(record.name) + ' · ' + longDate.format(new Date(record.created)) +
-    '</p><p class="message">' + escapeHTML(record.body) + '</p>' + photoButton(record, photoId);
+    '</p>' + (record.sku || record.stockStatus ? '<div class="answer-data">' +
+      (record.sku ? '<div><span>SKU</span><strong>' + escapeHTML(record.sku) + '</strong></div>' : '') +
+      (record.stockStatus ? '<div><span>Stok durumu</span><strong>' + escapeHTML(record.stockStatus) + '</strong></div>' : '') +
+      '</div>' : '') + (record.body ? '<p class="message">' + escapeHTML(record.body) + '</p>' : '') + photoButton(record, photoId);
 }
 async function loadPhoto(button) {
   try {
@@ -143,7 +146,9 @@ async function detail() {
         <section class="card panel"><h2>Yanıtlar (${replies.length})</h2>
           ${replies.length ? replies.map(reply => '<article class="reply">' + renderMessage(reply,reply.id) + '</article>').join("") : '<p class="muted">Henüz yanıt yok.</p>'}
           <form id="replyForm">
-            <label>Yanıtınız<textarea name="body" rows="3" maxlength="6000" placeholder="Yanıtınızı yazın…"></textarea></label>
+            <label>SKU<input name="sku" maxlength="120" required placeholder="Ürün SKU kodunu yazın"></label>
+            <label>Stok durumu<input name="stockStatus" maxlength="160" required placeholder="Örn. Stokta · 12 adet · Tükendi"></label>
+            <label>Ek açıklama <span class="muted">· isteğe bağlı</span><textarea name="body" rows="3" maxlength="6000" placeholder="Yanıtınıza ek bilgi ekleyin…"></textarea></label>
             <label>Fotoğraf <span class="muted">· isteğe bağlı</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG veya WebP · en fazla 5 MB</small></label>
             <p class="error" role="alert"></p>
             <div class="actions"><button class="primary" type="submit">Yanıtı gönder</button></div>
