@@ -71,6 +71,7 @@ async function api(request, bucket, url, user, owner, name, email) {
       boardOwner = board.owner;
       isOwner = boardOwner === owner && email?.toLowerCase() === siteOwnerEmail;
     }
+    if (!isOwner && !supplied) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
     if (isOwner && !board) {
       board = { owner, token: crypto.randomUUID() + crypto.randomUUID() };
       await bucket.put("boards/" + owner, JSON.stringify(board));
@@ -181,4 +182,3 @@ export default {
     }
   }
 };
-    if (!isOwner && !supplied) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
