@@ -5,11 +5,81 @@ const ticketPattern = /^[a-f0-9]{64}\/[a-f0-9-]{36}$/;
 const responsePattern = /^[a-f0-9-]{36}$/;
 const maxImage = 5 * 1024 * 1024;
 const siteOwnerEmail = "esmabayeaktar963@gmail.com";
+const pagesOrigin = "https://honeymoon-hub.github.io";
 const encoder = new TextEncoder();
 const json = (value, status = 200) => Response.json(value, {
   status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
 });
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
+function addCors(response, origin) {
+  if (origin !== pagesOrigin) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", pagesOrigin);
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Ticket-Key");
+  headers.set("Access-Control-Max-Age", "86400");
+  headers.append("Vary", "Origin");
+  return new Response(response.body, { status:response.status, statusText:response.statusText, headers });
+}
+let googleKeys = null;
+let googleKeysFetchedAt = 0;
+function decodeBase64Url(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+  return Uint8Array.from(atob(padded), character => character.charCodeAt(0));
+}
+function decodeJwtPart(value) {
+  return JSON.parse(new TextDecoder().decode(decodeBase64Url(value)));
+}
+async function getGoogleKeys(kid) {
+  if (!googleKeys || Date.now() - googleKeysFetchedAt > 3600000 || !googleKeys.keys.some(key => key.kid === kid)) {
+    const response = await fetch("https://www.googleapis.com/oauth2/v3/certs");
+    if (!response.ok) fail("Google ile giriş doğrulanamadı.", 503);
+    googleKeys = await response.json();
+    googleKeysFetchedAt = Date.now();
+  }
+  return googleKeys.keys.find(key => key.kid === kid);
+}
+async function verifyGoogleToken(token, clientId) {
+  if (!clientId || !token) fail("Google hesabıyla giriş yapın.", 401);
+  const parts = token.split(".");
+  if (parts.length !== 3) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
+  let header;
+  let claims;
+  try { header = decodeJwtPart(parts[0]); claims = decodeJwtPart(parts[1]); }
+  catch { fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401); }
+  if (header.alg !== "RS256" || !header.kid) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
+  const jwk = await getGoogleKeys(header.kid);
+  if (!jwk) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
+  const key = await crypto.subtle.importKey("jwk", jwk, { name:"RSASSA-PKCS1-v1_5", hash:"SHA-256" }, false, ["verify"]);
+  const signature = decodeBase64Url(parts[2]);
+  const signed = new TextEncoder().encode(parts[0] + "." + parts[1]);
+  const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signed);
+  const now = Math.floor(Date.now() / 1000);
+  const audienceMatches = claims.aud === clientId || (Array.isArray(claims.aud) && claims.aud.includes(clientId));
+  if (!valid || !["accounts.google.com", "https://accounts.google.com"].includes(claims.iss) ||
+      !audienceMatches || claims.exp <= now || claims.iat > now + 60 ||
+      claims.email_verified !== true || typeof claims.email !== "string" || typeof claims.sub !== "string") {
+    fail("Google oturumu geçersiz veya süresi dolmuş. Tekrar giriş yapın.", 401);
+  }
+  return claims;
+}
+async function resolveBoardOwner(bucket, email, userOwner) {
+  const app = await read(bucket, "app/owner");
+  if (app?.owner) return app.owner;
+  if (email.toLowerCase() !== siteOwnerEmail) fail("Pano sahibi önce Google hesabıyla giriş yapmalı.", 403);
+  const ticketObjects = await list(bucket, "tickets/");
+  const owners = new Set(ticketObjects.map(object => object.key.split("/")[1]).filter(Boolean));
+  const boardObjects = await list(bucket, "boards/");
+  for (const object of boardObjects) owners.add(object.key.slice("boards/".length));
+  const owner = owners.size === 1 ? [...owners][0] : userOwner;
+  await bucket.put("app/owner", JSON.stringify({ owner, email:siteOwnerEmail }));
+  let board = await read(bucket, "boards/" + owner);
+  if (!board) board = { owner, token:crypto.randomUUID() + crypto.randomUUID() };
+  board.ownerEmail = siteOwnerEmail;
+  await bucket.put("boards/" + owner, JSON.stringify(board));
+  return owner;
+}
 async function digest(value) {
   const hash = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
@@ -48,54 +118,43 @@ async function saveRecord(bucket, key, imageKey, record, photo, metadata) {
     throw error;
   }
 }
-async function api(request, bucket, url, user, owner, name, email) {
-  if (!user) fail("Devam etmek için giriş yapın.", 401);
+async function api(request, bucket, url, claims) {
   if (!bucket) fail("Depolama şu anda kullanılamıyor.", 503);
+  const { sub, email, name } = claims;
+  const ownerIdentity = await digest(sub);
+  const boardOwner = await resolveBoardOwner(bucket, email, ownerIdentity);
+  const isOwner = email.toLowerCase() === siteOwnerEmail;
+  const board = await read(bucket, "boards/" + boardOwner);
   const action = url.pathname.slice(5);
+
   if (request.method === "GET" && action === "list") {
-    let boardOwner = owner;
-    let board = await read(bucket, "boards/" + owner);
-    const supplied = request.headers.get("X-Ticket-Key");
-    let isOwner = email?.toLowerCase() === siteOwnerEmail && !supplied;
-    if (supplied) {
-      const boards = await list(bucket, "boards/");
-      board = null;
-      for (const object of boards) {
-        const candidate = await read(bucket, object.key);
-        if (candidate?.token === supplied) {
-          board = candidate;
-          break;
-        }
-      }
-      if (!board) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
-      boardOwner = board.owner;
-      isOwner = boardOwner === owner && email?.toLowerCase() === siteOwnerEmail;
-    }
-    if (!isOwner && !supplied) fail("Pano bağlantısı geçersiz veya erişiminiz yok.", 404);
-    if (isOwner && !board) {
-      board = { owner, token: crypto.randomUUID() + crypto.randomUUID() };
-      await bucket.put("boards/" + owner, JSON.stringify(board));
-    }
     const objects = await list(bucket, "tickets/" + boardOwner + "/");
     const tickets = objects.map(object => {
       const info = object.customMetadata;
       return { ...info, id: object.key.slice(8) };
     });
-    return json({ tickets: tickets.sort((a, b) => b.created.localeCompare(a.created)), name, isOwner, ...(isOwner ? { shareKey: board.token } : {}) });
+    return json({
+      tickets: tickets.sort((a, b) => b.created.localeCompare(a.created)),
+      name,
+      isOwner,
+      ...(isOwner ? { shareKey: board?.token } : {})
+    });
   }
+
   if (request.method === "POST") {
-    if (request.headers.get("Origin") !== url.origin) fail("İstek doğrulanamadı.", 403);
+    const origin = request.headers.get("Origin");
+    if (origin !== url.origin && origin !== pagesOrigin) fail("İstek doğrulanamadı.", 403);
     if (Number(request.headers.get("Content-Length")) > maxImage + 65536) fail("Dosya çok büyük.", 413);
   }
+
   if (request.method === "POST" && action === "create") {
-    if (email?.toLowerCase() !== siteOwnerEmail) fail("Yeni talepleri yalnızca pano sahibi açabilir.", 403);
+    if (!isOwner) fail("Yeni talepleri yalnızca pano sahibi açabilir.", 403);
     const form = await request.formData();
     const title = required(form, "title", 120);
     const body = required(form, "body", 6000);
     const priority = required(form, "priority", 10);
     if (!priorities.includes(priority)) fail("Geçerli bir öncelik seçin.");
-    const uuid = crypto.randomUUID();
-    const id = owner + "/" + uuid;
+    const id = boardOwner + "/" + crypto.randomUUID();
     const ticket = {
       id, title, body, priority, status: "open", name,
       token: crypto.randomUUID() + crypto.randomUUID(),
@@ -105,25 +164,21 @@ async function api(request, bucket, url, user, owner, name, email) {
       form.get("photo"), { title, priority, status: ticket.status, created: ticket.created });
     return json({ id }, 201);
   }
+
   const id = url.searchParams.get("id") || "";
-  if (!ticketPattern.test(id)) fail("Talep bulunamadı.", 404);
+  if (!ticketPattern.test(id) || !id.startsWith(boardOwner + "/")) fail("Talep bulunamadı.", 404);
   const key = "tickets/" + id;
   const ticket = await read(bucket, key);
-  const isOwner = id.startsWith(owner + "/") && email?.toLowerCase() === siteOwnerEmail;
-  const token = request.headers.get("X-Ticket-Key");
-  let hasBoardAccess = false;
-  if (!isOwner && token) {
-    const board = await read(bucket, "boards/" + id.split("/")[0]);
-    hasBoardAccess = Boolean(board && board.token === token);
-  }
-  if (!ticket || (!isOwner && !hasBoardAccess && (!token || token !== ticket.token))) fail("Talep bulunamadı veya erişiminiz yok.", 404);
+  if (!ticket) fail("Talep bulunamadı.", 404);
   const { token: shareKey, ...visible } = ticket;
+
   if (request.method === "GET" && action === "detail") {
     const objects = await list(bucket, "replies/" + id + "/");
     const replies = (await Promise.all(objects.map(object => read(bucket, object.key))))
       .filter(Boolean).sort((a, b) => a.created.localeCompare(b.created));
-    return json({ ticket: visible, replies, isOwner, canManage: isOwner || hasBoardAccess, ...(isOwner ? { shareKey } : {}) });
+    return json({ ticket: visible, replies, isOwner, canManage: true, ...(isOwner ? { shareKey } : {}) });
   }
+
   if (request.method === "GET" && action === "photo") {
     const reply = url.searchParams.get("reply") || "main";
     if (reply !== "main" && !responsePattern.test(reply)) fail("Fotoğraf bulunamadı.", 404);
@@ -136,6 +191,7 @@ async function api(request, bucket, url, user, owner, name, email) {
       "X-Content-Type-Options": "nosniff"
     } });
   }
+
   if (request.method === "POST" && action === "reply") {
     const form = await request.formData();
     const body = String(form.get("body") || "").trim();
@@ -150,14 +206,15 @@ async function api(request, bucket, url, user, owner, name, email) {
     await saveRecord(bucket, "replies/" + suffix, "photos/" + suffix, reply, photo);
     return json({ ok: true }, 201);
   }
+
   if (request.method === "POST" && action === "status") {
-    if (!isOwner && !hasBoardAccess) fail("Bu panoda durumu değiştirme yetkiniz yok.", 403);
     const { status } = await request.json();
     if (!statuses.includes(status)) fail("Geçerli bir durum seçin.");
     const { title, priority, created } = ticket;
     await bucket.put(key, JSON.stringify({ ...ticket, status }), { customMetadata: { title, priority, created, status } });
     return json({ ok: true });
   }
+
   fail("İşlem bulunamadı.", 404);
 }
 export default {
@@ -168,21 +225,24 @@ export default {
         "Content-Type": "text/html; charset=utf-8",
         "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob:; frame-ancestors 'self' https://chatgpt.com"
+        "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob:; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/ https://www.googleapis.com; frame-ancestors 'self' https://chatgpt.com"
       }
     });
     if (!url.pathname.startsWith("/api/")) return new Response(null, { status: 404 });
+    const origin = request.headers.get("Origin") || "";
+    if (request.method === "OPTIONS") return addCors(new Response(null, { status:204 }), origin);
+    if (request.method === "GET" && url.pathname === "/api/config") {
+      return addCors(json({ clientId:env.GOOGLE_CLIENT_ID || "" }), origin);
+    }
     try {
-      const user = request.headers.get("oai-authenticated-user-id");
-      let name = request.headers.get("oai-authenticated-user-full-name") || request.headers.get("oai-authenticated-user-email") || "Kullanıcı";
-      if (request.headers.get("oai-authenticated-user-full-name-encoding") === "percent-encoded-utf-8") {
-        try { name = decodeURIComponent(name); } catch {}
-      }
-      const email = request.headers.get("oai-authenticated-user-email") || "";
-      return await api(request, env.BUCKET, url, user, user && await digest(user), name, email);
+      const authorization = request.headers.get("Authorization") || "";
+      const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+      const claims = await verifyGoogleToken(token, env.GOOGLE_CLIENT_ID);
+      return addCors(await api(request, env.BUCKET, url, claims), origin);
     } catch (error) {
       if (!error.status) console.error(error.message);
-      return json({ error: error.status ? error.message : "İşlem tamamlanamadı. Tekrar deneyin." }, error.status || 500);
+      return addCors(json({ error: error.status ? error.message : "İşlem tamamlanamadı. Tekrar deneyin." }, error.status || 500), origin);
     }
   }
 };

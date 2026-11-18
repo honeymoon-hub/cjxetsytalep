@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Talep Masası</title>
+<meta name="description" content="Talepleri açın, yanıtlayın ve takip edin.">
+<link rel="stylesheet" href="/cjxetsytalep/style.css">
+</head>
+<body>
+<header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><div class="bar-tools"><span id="account"></span><button id="logout" type="button" hidden>Çıkış</button><button id="themeToggle" class="theme-toggle" type="button" aria-label="Koyu temaya geç" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">Koyu görünüm</span></button></div></div></header>
+<main>
+<section id="loginPanel" class="login-panel" hidden><span class="login-icon" aria-hidden="true">✦</span><p class="eyebrow">TALEP MASASI</p><h1>Panona hoş geldin</h1><p class="login-copy">Talepleri görüntülemek ve yanıtlamak için Google hesabınla giriş yap.</p><div id="googleButton"></div><p id="loginError" class="error" role="alert"></p></section>
+<section id="dashboard" hidden>
+  <div class="intro"><div><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><div class="intro-actions"><button id="shareBoard" type="button" hidden>Panoyu paylaş</button><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div></div>
+  <div class="filters board-tools"><div class="tabs" id="tabs" role="group" aria-label="Duruma göre filtrele"></div><input id="search" type="search" placeholder="Kartlarda ara…" aria-label="Kartlarda ara"></div>
+  <div id="ticketList" class="board"></div>
+</section>
+<section id="detail" hidden></section>
+<p id="notice" role="status">Yükleniyor…</p>
+</main>
+<dialog id="createDialog">
+  <form id="createForm">
+    <div class="dialog-head"><h2>Yeni talep</h2><button type="button" id="closeDialog" class="icon" aria-label="Kapat">×</button></div>
+    <label>Başlık<input name="title" required maxlength="120" placeholder="Talebin kısa başlığı"></label>
+    <label>Açıklama veya soru<textarea name="body" required maxlength="6000" rows="5" placeholder="Karşı tarafın bilmesi veya yanıtlaması gerekenleri yazın."></textarea></label>
+    <label>Öncelik<select name="priority"><option value="normal">Normal</option><option value="high">Yüksek</option><option value="urgent">Acil</option></select></label>
+    <label>Fotoğraf <span class="muted">· isteğe bağlı</span><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG veya WebP · en fazla 5 MB</small></label>
+    <p class="error" role="alert"></p>
+    <div class="actions"><button type="submit" class="primary">Talebi oluştur</button></div>
+  </form>
+</dialog>
+<dialog id="photoDialog"><button type="button" class="icon" aria-label="Kapat">×</button><img alt="Talebe eklenen fotoğraf"></dialog>
+<dialog id="boardDialog"><form method="dialog"><div class="dialog-head"><h2>Panoyu paylaş</h2><button class="icon" aria-label="Kapat">×</button></div><p class="share-help">Bu bağlantıya sahip olan ve siteye erişimi bulunan kişiler panodaki kartları görüntüleyip durumlarını değiştirebilir.</p><input id="boardUrl" class="share-input" readonly aria-label="Pano bağlantısı"><button id="copyBoard" type="button">Bağlantıyı kopyala</button><p id="boardCopyStatus" class="share-status" role="status"></p></form></dialog>
+<script>window.TICKET_API_ORIGIN = "https://talep-masasi-17.limitlesscoyote8.chatgpt.site";</script><script src="/cjxetsytalep/client.js" defer></script>
+</body>
+</html>

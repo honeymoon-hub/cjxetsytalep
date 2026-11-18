@@ -4,6 +4,8 @@ const priorityNames = { normal: "Normal", high: "Yüksek", urgent: "Acil" };
 const params = new URLSearchParams(location.search);
 const ticketId = params.get("talep");
 const key = new URLSearchParams(location.hash.slice(1)).get("anahtar");
+const API_ORIGIN = window.TICKET_API_ORIGIN || location.origin;
+let googleToken = sessionStorage.getItem("google-id-token") || "";
 const date = new Intl.DateTimeFormat("tr-TR", { day:"numeric", month:"short", year:"numeric", timeZone:"Europe/Istanbul" });
 const longDate = new Intl.DateTimeFormat("tr-TR", { dateStyle:"medium", timeStyle:"short", timeZone:"Europe/Istanbul" });
 let tickets = [];
@@ -26,20 +28,64 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
 })[character]);
 const tag = (value, labels) => '<span class="tag ' + escapeHTML(value) + '">' + escapeHTML(labels[value]) + '</span>';
 const shortId = id => "#" + id.split("/")[1].slice(0, 8).toUpperCase();
-const link = id => "/?talep=" + encodeURIComponent(id);
-const boardLink = shareKey => "/#anahtar=" + encodeURIComponent(shareKey);
+const link = id => (location.hostname === "honeymoon-hub.github.io" ? "/cjxetsytalep/" : "/") + "?talep=" + encodeURIComponent(id);
+const boardLink = shareKey => "https://honeymoon-hub.github.io/cjxetsytalep/#anahtar=" + encodeURIComponent(shareKey);
 async function api(action, options = {}, query = {}) {
-  const url = new URL("/api/" + action, location.origin);
+  const url = new URL("/api/" + action, API_ORIGIN);
   if (ticketId) url.searchParams.set("id", ticketId);
   for (const [name, value] of Object.entries(query)) url.searchParams.set(name, value);
   const headers = new Headers(options.headers);
+  if (googleToken) headers.set("Authorization", "Bearer " + googleToken);
   if (key) headers.set("X-Ticket-Key", key);
   const response = await fetch(url, { ...options, headers, redirect: "error" });
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
+    if (response.status === 401 && action !== "config") {
+      sessionStorage.removeItem("google-id-token");
+      googleToken = "";
+      showLogin(result.error);
+    }
     throw new Error(result.error || "Bağlantıyı kontrol edip tekrar deneyin.");
   }
   return action === "photo" ? response.blob() : response.json();
+}
+function loadGoogleIdentity() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Google giriş ekranı yüklenemedi."));
+    document.head.append(script);
+  });
+}
+async function showLogin(message = "") {
+  $("dashboard").hidden = true;
+  $("detail").hidden = true;
+  $("notice").hidden = true;
+  $("loginPanel").hidden = false;
+  $("logout").hidden = true;
+  $("account").textContent = "";
+  $("loginError").textContent = message;
+  try {
+    const config = await api("config");
+    if (!config.clientId) throw new Error("Google girişi henüz yapılandırılmadı.");
+    await loadGoogleIdentity();
+    const container = $("googleButton");
+    container.replaceChildren();
+    google.accounts.id.initialize({
+      client_id:config.clientId,
+      callback:response => {
+        googleToken = response.credential;
+        sessionStorage.setItem("google-id-token", googleToken);
+        location.reload();
+      }
+    });
+    google.accounts.id.renderButton(container, { theme:"outline", size:"large", shape:"pill", text:"signin_with", locale:"tr" });
+  } catch (error) {
+    $("loginError").textContent = error.message;
+  }
 }
 function renderBoard() {
   const query = $("search").value.trim().toLocaleLowerCase("tr");
@@ -87,6 +133,7 @@ async function dashboard() {
   tickets = result.tickets;
   boardShareKey = result.shareKey || null;
   $("account").textContent = result.name;
+  $("logout").hidden = false;
   $("shareBoard").hidden = !result.isOwner;
   $("newTicket").hidden = !result.isOwner;
   $("tabs").innerHTML = Object.entries({ all:"Tümü", ...statusNames }).map(([value, label]) =>
@@ -132,6 +179,7 @@ async function loadPhoto(button) {
 }
 async function detail() {
   const { ticket, replies, isOwner, canManage, shareKey } = await api("detail");
+  $("logout").hidden = false;
   for (const url of previewUrls.splice(0)) URL.revokeObjectURL(url);
   $("detail").innerHTML = `
     ${isOwner || canManage ? '<a class="back" href="' + (isOwner ? "/" : boardLink(key)) + '">← Panoya dön</a>' : ""}
@@ -182,7 +230,7 @@ async function detail() {
     });
   }
   if (isOwner) {
-    $("shareUrl").value = new URL(link(ticket.id), location.origin).href + "#anahtar=" + shareKey;
+    $("shareUrl").value = "https://honeymoon-hub.github.io/cjxetsytalep/" + link(ticket.id).replace(/^\//, "") + "#anahtar=" + shareKey;
     $("copy").onclick = async () => {
       try {
         await navigator.clipboard.writeText($("shareUrl").value);
@@ -207,6 +255,11 @@ function submit(form, handler) {
   });
 }
 $("newTicket").onclick = () => $("createDialog").showModal();
+$("logout").onclick = () => {
+  sessionStorage.removeItem("google-id-token");
+  googleToken = "";
+  location.reload();
+};
 $("closeDialog").onclick = () => $("createDialog").close();
 $("photoDialog").querySelector("button").onclick = () => $("photoDialog").close();
 $("shareBoard").onclick = () => {
@@ -228,9 +281,11 @@ submit($("createForm"), async form => {
 });
 (async () => {
   try {
+    if (!googleToken) { await showLogin(); return; }
     await (ticketId ? detail() : dashboard());
     $("notice").hidden = true;
   } catch (error) {
-    $("notice").textContent = error.message;
+    if (!googleToken) await showLogin(error.message);
+    else $("notice").textContent = error.message;
   }
 })();

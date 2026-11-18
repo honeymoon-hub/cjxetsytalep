@@ -173,3 +173,10 @@ html[data-theme=dark] .error{color:#ff8295}
 .answer-data span{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .answer-data strong{font-size:14px;overflow-wrap:anywhere}
 @media(max-width:460px){.answer-data{grid-template-columns:1fr}}
+.login-panel{width:min(440px,calc(100% - 28px));margin:9vh auto;padding:38px 32px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 24px 80px #211c4d1c}
+.login-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 18px;border-radius:16px;color:#fff;background:linear-gradient(135deg,#7058f3,#4e36d5);font-size:26px}
+.eyebrow{margin-bottom:11px;color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.14em}
+.login-panel h1{font-size:32px}
+.login-copy{margin:12px 0 24px;color:var(--muted);line-height:1.55}
+#googleButton{display:flex;justify-content:center;min-height:42px}
+#loginError{margin-top:14px}
