@@ -48,17 +48,19 @@ async function verifyGoogleToken(token, clientId) {
   let claims;
   try { header = decodeJwtPart(parts[0]); claims = decodeJwtPart(parts[1]); }
   catch { fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401); }
-  if (header.alg !== "RS256" || !header.kid) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
+  if (!header || !claims || header.alg !== "RS256" || !header.kid) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
   const jwk = await getGoogleKeys(header.kid);
   if (!jwk) fail("Google oturumu geçersiz. Tekrar giriş yapın.", 401);
   const key = await crypto.subtle.importKey("jwk", jwk, { name:"RSASSA-PKCS1-v1_5", hash:"SHA-256" }, false, ["verify"]);
-  const signature = decodeBase64Url(parts[2]);
+  let signature;
+  try { signature = decodeBase64Url(parts[2]); } catch { fail("Google oturumu geçersiz.", 401); }
   const signed = new TextEncoder().encode(parts[0] + "." + parts[1]);
   const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signed);
   const now = Math.floor(Date.now() / 1000);
   const audienceMatches = claims.aud === clientId || (Array.isArray(claims.aud) && claims.aud.includes(clientId));
   if (!valid || !["accounts.google.com", "https://accounts.google.com"].includes(claims.iss) ||
-      !audienceMatches || claims.exp <= now || claims.iat > now + 60 ||
+      !audienceMatches || (Array.isArray(claims.aud) && claims.azp !== clientId) ||
+      !Number.isFinite(claims.exp) || !Number.isFinite(claims.iat) || claims.exp <= now || claims.iat > now + 60 ||
       claims.email_verified !== true || typeof claims.email !== "string" || typeof claims.sub !== "string") {
     fail("Google oturumu geçersiz veya süresi dolmuş. Tekrar giriş yapın.", 401);
   }
@@ -72,6 +74,7 @@ async function resolveBoardOwner(bucket, email, userOwner) {
   const owners = new Set(ticketObjects.map(object => object.key.split("/")[1]).filter(Boolean));
   const boardObjects = await list(bucket, "boards/");
   for (const object of boardObjects) owners.add(object.key.slice("boards/".length));
+  if (owners.size > 1) fail("Birden fazla eski pano bulundu; yönetici aktarımı gerekiyor.", 409);
   const owner = owners.size === 1 ? [...owners][0] : userOwner;
   await bucket.put("app/owner", JSON.stringify({ owner, email:siteOwnerEmail }));
   let board = await read(bucket, "boards/" + owner);
@@ -129,10 +132,8 @@ async function api(request, bucket, url, claims) {
 
   if (request.method === "GET" && action === "list") {
     const objects = await list(bucket, "tickets/" + boardOwner + "/");
-    const tickets = objects.map(object => {
-      const info = object.customMetadata;
-      return { ...info, id: object.key.slice(8) };
-    });
+    const tickets = (await Promise.all(objects.map(object => read(bucket, object.key))))
+      .filter(Boolean).map(({ token, ...ticket }) => ticket);
     return json({
       tickets: tickets.sort((a, b) => b.created.localeCompare(a.created)),
       name,
@@ -223,7 +224,7 @@ export default {
     if (url.pathname === "/" && request.method === "GET") return new Response(PAGE, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Referrer-Policy": "no-referrer",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
         "X-Content-Type-Options": "nosniff",
         "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
         "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob:; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/ https://www.googleapis.com; frame-ancestors 'self' https://chatgpt.com"

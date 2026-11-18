@@ -28,7 +28,8 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
 })[character]);
 const tag = (value, labels) => '<span class="tag ' + escapeHTML(value) + '">' + escapeHTML(labels[value]) + '</span>';
 const shortId = id => "#" + id.split("/")[1].slice(0, 8).toUpperCase();
-const link = id => (location.hostname === "honeymoon-hub.github.io" ? "/cjxetsytalep/" : "/") + "?talep=" + encodeURIComponent(id);
+const homePath = location.hostname === "honeymoon-hub.github.io" ? "/cjxetsytalep/" : "/";
+const link = id => homePath + "?talep=" + encodeURIComponent(id);
 const boardLink = shareKey => "https://honeymoon-hub.github.io/cjxetsytalep/#anahtar=" + encodeURIComponent(shareKey);
 async function api(action, options = {}, query = {}) {
   const url = new URL("/api/" + action, API_ORIGIN);
@@ -182,7 +183,7 @@ async function detail() {
   $("logout").hidden = false;
   for (const url of previewUrls.splice(0)) URL.revokeObjectURL(url);
   $("detail").innerHTML = `
-    ${isOwner || canManage ? '<a class="back" href="' + (isOwner ? "/" : boardLink(key)) + '">← Panoya dön</a>' : ""}
+    ${isOwner || canManage ? '<a class="back" href="' + homePath + '">← Panoya dön</a>' : ""}
     <header class="detail-head">
       <div><p class="meta">${shortId(ticket.id)}</p><h1>${escapeHTML(ticket.title)}</h1>
         <div class="tags">${tag(ticket.status, statusNames)}${tag(ticket.priority, priorityNames)}</div>
@@ -230,7 +231,7 @@ async function detail() {
     });
   }
   if (isOwner) {
-    $("shareUrl").value = "https://honeymoon-hub.github.io/cjxetsytalep/" + link(ticket.id).replace(/^\//, "") + "#anahtar=" + shareKey;
+    $("shareUrl").value = "https://honeymoon-hub.github.io/cjxetsytalep/?talep=" + encodeURIComponent(ticket.id) + "#anahtar=" + shareKey;
     $("copy").onclick = async () => {
       try {
         await navigator.clipboard.writeText($("shareUrl").value);
