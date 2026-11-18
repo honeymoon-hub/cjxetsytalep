@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/cjxetsytalep/style.css">
 </head>
 <body>
-<header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><div class="bar-tools"><span id="account"></span><button id="logout" type="button" hidden>Çıkış</button><button id="themeToggle" class="theme-toggle" type="button" aria-label="Koyu temaya geç" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">Koyu görünüm</span></button></div></div></header>
+<header class="top"><div class="bar"><a class="brand" href="/cjxetsytalep/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><div class="bar-tools"><span id="account"></span><button id="logout" type="button" hidden>Çıkış</button><button id="themeToggle" class="theme-toggle" type="button" aria-label="Koyu temaya geç" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">Koyu görünüm</span></button></div></div></header>
 <main>
 <section id="loginPanel" class="login-panel" hidden><span class="login-icon" aria-hidden="true">✦</span><p class="eyebrow">TALEP MASASI</p><h1>Panona hoş geldin</h1><p class="login-copy">Talepleri görüntülemek ve yanıtlamak için Google hesabınla giriş yap.</p><div id="googleButton"></div><p id="loginError" class="error" role="alert"></p></section>
 <section id="dashboard" hidden>
@@ -18,7 +18,7 @@
 </section>
 <section id="detail" hidden></section>
 <p id="notice" role="status">Yükleniyor…</p>
-</main>
+<section aria-label="Talep Masası hakkında"><h2>Talep Masası nasıl çalışır?</h2><p>Talep Masası, Esma Bayraktar tarafından yönetilen ortak talep takip panosudur. Yönetici talepler oluşturur; katılımcılar yanıt, ürün SKU bilgisi, stok durumu ve fotoğraf ekleyerek işlerin durumunu takip eder.</p><p>Google ile giriş yalnızca kimliğinizi doğrulamak için kullanılır. Gmail veya Drive içeriğinize erişim istenmez. Ortak panoya gönderdiğiniz içerikler panoya erişen diğer katılımcılar tarafından görülebilir.</p><p><a href="/cjxetsytalep/privacy.html">Gizlilik politikası</a> · <a href="/cjxetsytalep/terms.html">Kullanım koşulları</a> · <a href="mailto:esmabayeaktar963@gmail.com">İletişim</a></p></section></main>
 <dialog id="createDialog">
   <form id="createForm">
     <div class="dialog-head"><h2>Yeni talep</h2><button type="button" id="closeDialog" class="icon" aria-label="Kapat">×</button></div>
