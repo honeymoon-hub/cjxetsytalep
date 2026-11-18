@@ -10,7 +10,7 @@ const page = template
   .replace(
     "<!-- SCRIPT -->",
     '<script>window.TICKET_API_ORIGIN = ' + JSON.stringify(apiOrigin) + ';</script>' +
-      '<script src="' + basePath + '/client.js" defer></script>',
+      '<script src="' + basePath + '/i18n.js" defer></script>' + '<script src="' + basePath + '/client.js" defer></script>',
   );
 
 await mkdir("docs", { recursive: true });
@@ -18,6 +18,7 @@ await Promise.all([
   writeFile("docs/index.html", page),
   copyFile("worker/style.css", "docs/style.css"),
   copyFile("worker/client.js", "docs/client.js"),
+  copyFile("worker/i18n.js", "docs/i18n.js"),
   writeFile("docs/.nojekyll", ""),
 ]);
 

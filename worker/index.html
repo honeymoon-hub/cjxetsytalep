@@ -8,12 +8,12 @@
 <!-- STYLES -->
 </head>
 <body>
-<header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><div class="bar-tools"><span id="account"></span><button id="logout" type="button" hidden>Çıkış</button><button id="themeToggle" class="theme-toggle" type="button" aria-label="Koyu temaya geç" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">Koyu görünüm</span></button></div></div></header>
+<header class="top"><div class="bar"><a class="brand" href="/"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>Talep Masası</a><div class="bar-tools"><select id="languageSelect" aria-label="Dil / Language"><option value="tr">TR · Türkçe</option><option value="en">EN · English</option></select><span id="account"></span><button id="logout" type="button" hidden>Çıkış</button><button id="themeToggle" class="theme-toggle" type="button" aria-label="Koyu temaya geç" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">Koyu görünüm</span></button></div></div></header>
 <main>
 <section id="loginPanel" class="login-panel" hidden><span class="login-icon" aria-hidden="true">✦</span><p class="eyebrow">TALEP MASASI</p><h1>Panona hoş geldin</h1><p class="login-copy">Talepleri görüntülemek ve yanıtlamak için Google hesabınla giriş yap.</p><div id="googleButton"></div><p id="loginError" class="error" role="alert"></p></section>
 <section id="dashboard" hidden>
-  <div class="intro"><div><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><div class="intro-actions"><button id="shareBoard" type="button" hidden>Panoyu paylaş</button><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div></div>
-  <div class="filters board-tools"><div class="tabs" id="tabs" role="group" aria-label="Duruma göre filtrele"></div><input id="search" type="search" placeholder="Kartlarda ara…" aria-label="Kartlarda ara"></div>
+  <div class="intro"><div><p class="eyebrow">ÇALIŞMA ALANI / 01</p><h1>Talepler</h1><p>Açtığınız talepleri ve gelen yanıtları takip edin.</p></div><div class="intro-actions"><button id="shareBoard" type="button" hidden>Panoyu paylaş</button><button class="primary" id="newTicket"><span aria-hidden="true">＋</span> Yeni talep</button></div></div>
+  <div id="boardMetrics" class="metrics" aria-label="Pano özeti"></div><div class="filters board-tools"><div class="tabs" id="tabs" role="group" aria-label="Duruma göre filtrele"></div><input id="search" type="search" placeholder="Ticket ID veya başlık ara…" aria-label="Kartlarda ara"></div>
   <div id="ticketList" class="board"></div>
 </section>
 <section id="detail" hidden></section>

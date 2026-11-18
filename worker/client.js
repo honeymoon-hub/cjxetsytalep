@@ -6,8 +6,8 @@ const ticketId = params.get("talep");
 const key = new URLSearchParams(location.hash.slice(1)).get("anahtar");
 const API_ORIGIN = window.TICKET_API_ORIGIN || location.origin;
 let googleToken = sessionStorage.getItem("google-id-token") || "";
-const date = new Intl.DateTimeFormat("tr-TR", { day:"numeric", month:"short", year:"numeric", timeZone:"Europe/Istanbul" });
-const longDate = new Intl.DateTimeFormat("tr-TR", { dateStyle:"medium", timeStyle:"short", timeZone:"Europe/Istanbul" });
+const date = {format: value => new Intl.DateTimeFormat(language === "en" ? "en-GB" : "tr-TR", {day:"numeric",month:"short",year:"numeric",timeZone:"Europe/Istanbul"}).format(value)};
+const longDate = {format: value => new Intl.DateTimeFormat(language === "en" ? "en-GB" : "tr-TR", {dateStyle:"medium",timeStyle:"short",timeZone:"Europe/Istanbul"}).format(value)};
 let tickets = [];
 let filter = "all";
 let boardShareKey = null;
@@ -27,7 +27,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
   "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
 })[character]);
 const tag = (value, labels) => '<span class="tag ' + escapeHTML(value) + '">' + escapeHTML(labels[value]) + '</span>';
-const shortId = id => "#" + id.split("/")[1].slice(0, 8).toUpperCase();
+const shortId = id => "TKT-" + id.split("/").at(-1).toUpperCase();
 const homePath = location.hostname === "honeymoon-hub.github.io" ? "/cjxetsytalep/" : "/";
 const link = id => homePath + "?talep=" + encodeURIComponent(id);
 const boardLink = shareKey => "https://honeymoon-hub.github.io/cjxetsytalep/#anahtar=" + encodeURIComponent(shareKey);
@@ -83,12 +83,13 @@ async function showLogin(message = "") {
         location.reload();
       }
     });
-    google.accounts.id.renderButton(container, { theme:"outline", size:"large", shape:"pill", text:"signin_with", locale:"tr" });
+    google.accounts.id.renderButton(container, { theme:"outline", size:"large", shape:"pill", text:"signin_with", locale:language });
   } catch (error) {
     $("loginError").textContent = error.message;
   }
 }
 function renderBoard() {
+  $("boardMetrics").innerHTML = Object.entries({all:"Toplam talep", ...statusNames}).map(([status,label]) => '<div class="metric"><span>' + label + '</span><strong>' + (status === "all" ? tickets.length : tickets.filter(item=>item.status === status).length) + '</strong></div>').join("");
   const query = $("search").value.trim().toLocaleLowerCase("tr");
   const isBoardOwner = Boolean(boardShareKey && !key);
   const shown = tickets.filter(ticket => (filter === "all" || ticket.status === filter) &&
@@ -100,7 +101,7 @@ function renderBoard() {
       <div class="column-cards" data-dropzone="${status}">${cards.length ? cards.map(ticket => `
         <article class="ticket-card" draggable="true" data-ticket="${escapeHTML(ticket.id)}">
           <a class="card-open" href="${link(ticket.id)}${!isBoardOwner && key ? "#anahtar=" + encodeURIComponent(key) : ""}">
-            <span class="card-title">${escapeHTML(ticket.title)}</span>
+            <span class="ticket-reference">${shortId(ticket.id)}</span><span class="card-title">${escapeHTML(ticket.title)}</span>
             <span class="card-description">${escapeHTML(ticket.body)}</span>
             <span class="card-tags">${tag(ticket.priority, priorityNames)}${ticket.hasPhoto ? '<span class="attachment">▧ Fotoğraf</span>' : ''}</span>
             <span class="card-foot"><span>${escapeHTML(ticket.name)}</span><span>${date.format(new Date(ticket.created))}</span></span>
@@ -125,7 +126,7 @@ function renderBoard() {
       renderBoard();
       try {
         await api("status", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({status:ticket.status}) }, {id});
-      } catch (error) { ticket.status = previous; renderBoard(); alert(error.message); }
+      } catch (error) { ticket.status = previous; renderBoard(); alert(translateText(error.message)); }
     });
   }
 }
@@ -157,7 +158,7 @@ function renderMessage(record, photoId) {
     '</p>' + (record.sku || record.stockStatus ? '<div class="answer-data">' +
       (record.sku ? '<div><span>SKU</span><strong>' + escapeHTML(record.sku) + '</strong></div>' : '') +
       (record.stockStatus ? '<div><span>Stok durumu</span><strong>' + escapeHTML(record.stockStatus) + '</strong></div>' : '') +
-      '</div>' : '') + (record.body ? '<p class="message">' + escapeHTML(record.body) + '</p>' : '') + photoButton(record, photoId);
+      '</div>' : '') + (record.body ? '<p class="message">' + escapeHTML(record.body) + '</p>' : '') + (record.cjLink && /^https?:\/\//i.test(record.cjLink) ? '<p class="cj-link"><span>CJ linki</span><a data-user-content href="' + escapeHTML(record.cjLink) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(record.cjLink) + ' ↗</a></p>' : '') + photoButton(record, photoId);
 }
 async function loadPhoto(button) {
   try {
@@ -185,7 +186,7 @@ async function detail() {
   $("detail").innerHTML = `
     ${isOwner || canManage ? '<a class="back" href="' + homePath + '">← Panoya dön</a>' : ""}
     <header class="detail-head">
-      <div><p class="meta">${shortId(ticket.id)}</p><h1>${escapeHTML(ticket.title)}</h1>
+      <div><p class="ticket-reference">${shortId(ticket.id)}</p><button id="copyTicketId" type="button">ID kopyala</button><h1 data-user-content>${escapeHTML(ticket.title)}</h1>
         <div class="tags">${tag(ticket.status, statusNames)}${tag(ticket.priority, priorityNames)}</div>
       </div>
     </header>
@@ -197,6 +198,7 @@ async function detail() {
           <form id="replyForm">
             <label>SKU<input name="sku" maxlength="120" required placeholder="Ürün SKU kodunu yazın"></label>
             <label>Stok durumu<input name="stockStatus" maxlength="160" required placeholder="Örn. Stokta · 12 adet · Tükendi"></label>
+            <label>CJ linki <span class="muted">· isteğe bağlı</span><input name="cjLink" type="url" maxlength="2048" placeholder="https://www.cjdropshipping.com/…"></label>
             <label>Ek açıklama <span class="muted">· isteğe bağlı</span><textarea name="body" rows="3" maxlength="6000" placeholder="Yanıtınıza ek bilgi ekleyin…"></textarea></label>
             <label>Fotoğraf <span class="muted">· isteğe bağlı</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG veya WebP · en fazla 5 MB</small></label>
             <p class="error" role="alert"></p>
@@ -211,12 +213,16 @@ async function detail() {
           <p class="error" role="alert"></p>
           <button type="submit">Durumu güncelle</button>
         </form></section>
-        ${isOwner ? `<section class="card panel"><h2>Yanıt bağlantısı</h2><p class="share-help">Bu bağlantıyla yalnızca bu talep yanıtlanabilir.</p>
+        ${isOwner ? `<section class="card panel"><h2>Yanıt bağlantısı</h2><p class="share-help">Bu bağlantı talebi açar. Giriş yapan katılımcılar ortak panoya erişebilir.</p>
         <input class="share-input" id="shareUrl" readonly aria-label="Yanıt bağlantısı"><button type="button" id="copy">Bağlantıyı kopyala</button>
         <p class="share-status" id="copyStatus" role="status"></p></section>` : ""}
       </aside>` : ""}
     </div>`;
   $("detail").hidden = false;
+  $("copyTicketId").onclick = async () => {
+    try { await navigator.clipboard.writeText(shortId(ticket.id)); $("copyTicketId").textContent = "ID kopyalandı"; }
+    catch { $("copyTicketId").textContent = "ID’yi üstteki metinden kopyalayın"; }
+  };
   for (const button of $("detail").querySelectorAll("[data-photo]")) loadPhoto(button);
   submit($("replyForm"), async form => {
     await api("reply", { method:"POST", body:new FormData(form) });

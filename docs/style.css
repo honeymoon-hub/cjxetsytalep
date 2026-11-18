@@ -180,3 +180,20 @@ html[data-theme=dark] .error{color:#ff8295}
 .login-copy{margin:12px 0 24px;color:var(--muted);line-height:1.55}
 #googleButton{display:flex;justify-content:center;min-height:42px}
 #loginError{margin-top:14px}
+/* Workspace refresh */
+:root{--accent:#167f79;--page:#f3f6f7;--column:#edf2f3;--muted:#637780;--ink:#20383f;--line:#dce6e9}
+html[data-theme=dark]{--accent:#73d6c4;--page:#111d24;--column:#1a2b33;--ink:#e6f1f2;--surface:#20323b;--line:#344a54;--muted:#a4b9c1}
+body{background:radial-gradient(ellipse at 5% 0%,#dbeee9,transparent 40rem),var(--page)}
+html[data-theme=dark] body{background:radial-gradient(ellipse at 5% 0%,#163c3d,transparent 40rem),var(--page)}
+.top{position:sticky;top:0;z-index:5}.bar{max-width:1480px}.brand{font-size:20px}.mark{border-radius:12px;background:#167f79}
+#account:empty{display:none}.bar-tools{gap:10px}#languageSelect{width:auto;font-size:12px;font-weight:700;border-radius:10px;padding:9px;cursor:pointer}
+main{max-width:1480px;padding-top:32px}.intro{padding:30px;border-radius:20px;background:var(--surface);box-shadow:none;border-color:var(--line);position:relative;overflow:hidden}.intro:before{content:'';position:absolute;inset:0 auto 0 0;width:5px;background:var(--accent)}
+html[data-theme=dark] .intro{background:var(--surface)}.intro .eyebrow{color:var(--accent);font-size:10px;letter-spacing:.18em;margin:0 0 10px}.intro h1{font-size:38px;letter-spacing:-.04em}
+.primary{background:#167f79;box-shadow:0 4px 10px #167f7922}.primary:hover{background:#11665f}html[data-theme=dark] .primary{background:#73d6c4;color:#112e2e}
+.metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.metric{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;border-radius:14px}.metric span{font-size:13px;color:var(--muted);font-weight:600}.metric strong{font-size:30px;letter-spacing:-.04em}.metric:first-child{background:#203d46;color:white;border-color:#203d46}.metric:first-child span{color:#c1d9db}
+.board{gap:20px}.board-column{box-shadow:none;border-radius:16px}.board-column:before{background:#78a5b8}.board-column[data-column=progress]:before{background:#d5a052}.board-column[data-column=done]:before{background:#269c86}.column-cards{align-content:start}.ticket-card{border-radius:12px;box-shadow:0 2px 3px #193b4010}.card-open{padding:18px}.ticket-reference{font:11px/1.5 ui-monospace,SFMono-Regular,monospace;letter-spacing:.03em;color:var(--muted);overflow-wrap:anywhere}.detail-head .ticket-reference{font-size:12px;margin-bottom:10px}#copyTicketId{font-size:11px;padding:5px 9px;margin-bottom:14px}.card-title{font-size:16px}.card-description{-webkit-line-clamp:2}
+.cj-link{display:grid;gap:6px;background:var(--column);border:1px solid var(--line);padding:14px;border-radius:10px;margin:12px 0}.cj-link span{font-size:12px;color:var(--muted);font-weight:700}.cj-link a{color:var(--accent);overflow-wrap:anywhere}.login-icon{background:#167f79}.login-panel{width:min(520px,100%);margin:5vh auto;padding:42px}.panel{border-radius:16px}.detail-columns{grid-template-columns:minmax(0,2.5fr) minmax(260px,1fr)}
+section[aria-label="Talep Masası hakkında"]{margin:36px auto 0;padding:24px;border-top:1px solid var(--line);max-width:900px;color:var(--muted);font-size:13px;line-height:1.7}section[aria-label="Talep Masası hakkında"] h2{font-size:18px;margin-bottom:10px}section[aria-label="Talep Masası hakkında"] p+p{margin-top:12px}section[aria-label="Talep Masası hakkında"] a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:700px){.bar{flex-wrap:wrap}.bar-tools{flex-wrap:wrap}#account{max-width:150px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:14px}.metric strong{font-size:25px}.detail-columns{grid-template-columns:1fr}.intro{padding:22px}.login-panel{padding:28px 18px}main{padding-top:20px}.intro h1{font-size:32px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}

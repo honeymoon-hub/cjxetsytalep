@@ -199,10 +199,16 @@ async function api(request, bucket, url, claims) {
     const sku = String(form.get("sku") || "").trim();
     const stockStatus = String(form.get("stockStatus") || "").trim();
     const photo = form.get("photo");
+    const cjLink = String(form.get("cjLink") || "").trim();
+    if (cjLink) {
+      let parsed;
+      try { parsed = new URL(cjLink); } catch { fail("Geçerli bir CJ bağlantısı girin."); }
+      if (cjLink.length > 2048 || !["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password) fail("Geçerli bir CJ bağlantısı girin.");
+    }
     if (!sku || sku.length > 120 || !stockStatus || stockStatus.length > 160 || body.length > 6000) {
       fail("SKU ve stok durumu alanlarını doldurun.");
     }
-    const reply = { id: crypto.randomUUID(), name, body, sku, stockStatus, created: new Date().toISOString(), hasPhoto: false };
+    const reply = { id: crypto.randomUUID(), name, body, sku, stockStatus, cjLink, created: new Date().toISOString(), hasPhoto: false };
     const suffix = id + "/" + reply.id;
     await saveRecord(bucket, "replies/" + suffix, "photos/" + suffix, reply, photo);
     return json({ ok: true }, 201);
